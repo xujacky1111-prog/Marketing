@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>营销日历 | Marketing Calendar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        .fc-event { cursor: pointer; padding: 2px 4px; border-radius: 4px; border: none; }
+        .fc-toolbar-title { font-size: 1.25rem !important; font-weight: 700; color: #1e293b; }
+        .fc-button-primary { background-color: #3b82f6 !important; border-color: #3b82f6 !important; }
+        .fc-button-primary:hover { background-color: #2563eb !important; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-900" x-data="calendarApp()">
+    
+    <nav class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold">M</div>
+            <h1 class="text-xl font-bold tracking-tight">营销日历 <span class="text-slate-400 font-normal text-sm ml-2">Marketing Hub</span></h1>
+        </div>
+        <div class="flex gap-3">
+            <button @click="openModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                新建活动
+            </button>
+        </div>
+    </nav>
+
+    <main class="p-6 max-w-7xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Sidebar: Categories & Stats -->
+            <div class="space-y-6">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-sm uppercase tracking-wider text-slate-500 mb-4">活动分类</h3>
+                    <div class="space-y-3">
+                        <template x-for="(cat, key) in categories" :key="key">
+                            <div class="flex items-center gap-3">
+                                <span :class="`w-3 h-3 rounded-full ${cat.color}`"></span>
+                                <span class="text-sm font-medium text-slate-700" x-text="cat.label"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="bg-blue-600 p-5 rounded-xl text-white shadow-lg shadow-blue-200">
+                    <h3 class="text-blue-100 text-xs font-bold uppercase tracking-widest mb-1">本月指标</h3>
+                    <div class="text-3xl font-bold" x-text="events.length">0</div>
+                    <p class="text-blue-100 text-xs mt-2 opacity-80">项计划活动已排期</p>
+                </div>
+            </div>
+
+            <!-- Calendar Section -->
+            <div class="lg:col-span-3">
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm min-h-[700px]">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for Adding Event -->
+    <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" x-cloak>
+        <div @click.away="closeModal()" class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="text-lg font-bold" x-text="isEdit ? '编辑活动' : '新建营销活动'"></h3>
+                <button @click="closeModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <form @submit.prevent="saveEvent()" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">活动名称</label>
+                    <input type="text" x-model="formData.title" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">开始日期</label>
+                        <input type="date" x-model="formData.start" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">结束日期</label>
+                        <input type="date" x-model="formData.end" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">类型</label>
+                    <select x-model="formData.category" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                        <template x-for="(cat, key) in categories" :key="key">
+                            <option :value="key" x-text="cat.label"></option>
+                        </template>
+                    </select>
+                </div>
+                <div class="pt-4 flex gap-3">
+                    <template x-if="isEdit">
+                        <button type="button" @click="deleteEvent()" class="flex-1 px-4 py-2 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-100 transition-all">删除</button>
+                    </template>
+                    <button type="submit" class="flex-[2] px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all shadow-md">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function calendarApp() {
+            return {
+                calendar: null,
+                showModal: false,
+                isEdit: false,
+                events: JSON.parse(localStorage.getItem('mkt_events') || '[]'),
+                formData: { id: '', title: '', start: '', end: '', category: 'social' },
+                categories: {
+                    social: { label: '社交媒体', color: 'bg-indigo-500', hex: '#6366f1' },
+                    campaign: { label: '促销活动', color: 'bg-rose-500', hex: '#f43f5e' },
+                    content: { label: '内容发布', color: 'bg-emerald-500', hex: '#10b981' },
+                    event: { label: '线下活动', color: 'bg-amber-500', hex: '#f59e0b' },
+                    other: { label: '其他', color: 'bg-slate-500', hex: '#64748b' }
+                },
+
+                init() {
+                    const calendarEl = document.getElementById('calendar');
+                    this.calendar = new FullCalendar.Calendar(calendarEl, {
+                        initialView: 'dayGridMonth',
+                        locale: 'zh-cn',
+                        headerToolbar: {
+                            left: 'prev,next today',
+                            center: 'title',
+                            right: 'dayGridMonth,timeGridWeek,listMonth'
+                        },
+                        events: this.events,
+                        eventClick: (info) => this.openEditModal(info.event),
+                        dateClick: (info) => this.openModal(info.dateStr),
+                        editable: true,
+                        eventDrop: (info) => this.updateEvent(info.event),
+                    });
+                    this.calendar.render();
+                },
+
+                openModal(date = '') {
+                    this.isEdit = false;
+                    this.formData = { id: Date.now().toString(), title: '', start: date || new Date().toISOString().split('T')[0], end: '', category: 'social' };
+                    this.showModal = true;
+                },
+
+                openEditModal(event) {
+                    this.isEdit = true;
+                    this.formData = {
+                        id: event.id,
+                        title: event.title,
+                        start: event.startStr.split('T')[0],
+                        end: event.endStr ? event.endStr.split('T')[0] : '',
+                        category: event.extendedProps.category || 'other'
+                    };
+                    this.showModal = true;
+                },
+
+                closeModal() {
+                    this.showModal = false;
+                },
+
+                saveEvent() {
+                    const eventData = {
+                        id: this.formData.id,
+                        title: this.formData.title,
+                        start: this.formData.start,
+                        end: this.formData.end,
+                        backgroundColor: this.categories[this.formData.category].hex,
+                        extendedProps: { category: this.formData.category }
+                    };
+
+                    if (this.isEdit) {
+                        this.events = this.events.map(e => e.id === eventData.id ? eventData : e);
+                    } else {
+                        this.events.push(eventData);
+                    }
+
+                    this.persist();
+                    this.calendar.removeAllEvents();
+                    this.calendar.addEventSource(this.events);
+                    this.closeModal();
+                },
+
+                updateEvent(event) {
+                    this.events = this.events.map(e => e.id === event.id ? {
+                        ...e,
+                        start: event.startStr,
+                        end: event.endStr
+                    } : e);
+                    this.persist();
+                },
+
+                deleteEvent() {
+                    this.events = this.events.filter(e => e.id !== this.formData.id);
+                    this.persist();
+                    this.calendar.getEventById(this.formData.id).remove();
+                    this.closeModal();
+                },
+
+                persist() {
+                    localStorage.setItem('mkt_events', JSON.stringify(this.events));
+                }
+            }
+        }
+    </script>
+</body>
+</html>
